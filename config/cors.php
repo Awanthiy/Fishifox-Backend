@@ -26,8 +26,7 @@ return [
         'http://localhost:3000',
         'http://localhost:5173',
         'http://127.0.0.1:5173',
-        'http://172.20.10.6:5173',
-        'https://velvety-pegasus-2965c6.netlify.app', // Netlify production
+        'https://fishi-fox-frontend-ankvvc3zi-awanthiys-projects.vercel.app',
     ],
 
     /*
@@ -35,7 +34,9 @@ return [
     | Allowed Origins Patterns
     |--------------------------------------------------------------------------
     */
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/https:\/\/.*\.vercel\.app/',
+    ],
 
     /*
     |--------------------------------------------------------------------------
