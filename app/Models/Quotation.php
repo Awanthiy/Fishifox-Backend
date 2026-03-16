@@ -11,7 +11,11 @@ class Quotation extends Model
 
     protected $fillable = [
         'quote_number',
+        'customer_id',
         'customer',
+        'customer_email',
+        'customer_phone',
+        'customer_address',
         'amount',
         'currency',
         'quote_date',
@@ -24,5 +28,11 @@ class Quotation extends Model
         'quote_date' => 'date',
         'converted' => 'boolean',
         'converted_at' => 'datetime',
+        'amount' => 'decimal:2',
     ];
+
+    public function services()
+    {
+        return $this->hasMany(QuotationService::class);
+    }
 }
