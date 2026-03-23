@@ -12,6 +12,9 @@ use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\RecurringInvoiceController;
 use App\Http\Controllers\Api\DashboardController;
 
+
+Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download']);
+Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail']);
 Route::get('/dashboard', [DashboardController::class, 'index']);
 
 
