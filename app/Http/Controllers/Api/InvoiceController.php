@@ -5,29 +5,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Response;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\InvoiceMail;
 
 class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
-        $search = trim((string) $request->query('search', ''));
-
-        $q = Invoice::query()->orderByDesc('id');
-
-        if ($search !== '') {
-            $q->where(function ($qq) use ($search) {
-                $qq->where('invoice_number', 'like', "%{$search}%")
-                   ->orWhere('customer_name', 'like', "%{$search}%");
-            });
-        }
-
         return response()->json(
-            $q->get()->map(fn (Invoice $inv) => [
+            Invoice::orderByDesc('id')->get()->map(fn ($inv) => [
                 'id' => (string) $inv->id,
                 'invoice_number' => $inv->invoice_number,
                 'customer_name' => $inv->customer_name,
-                'customer_email' => $inv->customer_email, // ✅
+                'customer_email' => $inv->customer_email,
                 'amount' => (float) $inv->amount,
                 'currency' => $inv->currency,
                 'date' => optional($inv->billing_date)->format('Y-m-d'),
@@ -39,86 +30,39 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'invoice_number' => ['nullable', 'string', 'max:50'],
-            'customer_name' => ['required', 'string', 'max:255'],
-            'customer_email' => ['nullable', 'email', 'max:255'], // ✅
-            'amount' => ['required', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'max:10'],
+            'customer_name' => ['required'],
+            'customer_email' => ['nullable', 'email'],
+            'amount' => ['required', 'numeric'],
+            'currency' => ['required'],
             'billing_date' => ['nullable', 'date'],
-            'status' => ['required', 'in:PAID,PENDING,OVERDUE'],
+            'status' => ['required'],
         ]);
 
-        if (empty($data['invoice_number'])) {
-            $data['invoice_number'] = $this->generateInvoiceNumber();
-        }
+        $data['invoice_number'] = 'INV-' . rand(1000, 9999);
 
-        $inv = Invoice::create($data);
-
-        return response()->json([
-            'id' => (string) $inv->id,
-            'invoice_number' => $inv->invoice_number,
-            'customer_name' => $inv->customer_name,
-            'customer_email' => $inv->customer_email, // ✅
-            'amount' => (float) $inv->amount,
-            'currency' => $inv->currency,
-            'date' => optional($inv->billing_date)->format('Y-m-d'),
-            'status' => $inv->status,
-        ], 201);
-    }
-
-    public function update(Request $request, Invoice $invoice)
-    {
-        $data = $request->validate([
-            'invoice_number' => ['required', 'string', 'max:50', 'unique:invoices,invoice_number,' . $invoice->id],
-            'customer_name' => ['required', 'string', 'max:255'],
-            'customer_email' => ['nullable', 'email', 'max:255'], // ✅
-            'amount' => ['required', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'max:10'],
-            'billing_date' => ['nullable', 'date'],
-            'status' => ['required', 'in:PAID,PENDING,OVERDUE'],
-        ]);
-
-        $invoice->update($data);
-
-        return response()->json([
-            'id' => (string) $invoice->id,
-            'invoice_number' => $invoice->invoice_number,
-            'customer_name' => $invoice->customer_name,
-            'customer_email' => $invoice->customer_email, // ✅
-            'amount' => (float) $invoice->amount,
-            'currency' => $invoice->currency,
-            'date' => optional($invoice->billing_date)->format('Y-m-d'),
-            'status' => $invoice->status,
-        ]);
-    }
-
-    public function destroy(Invoice $invoice)
-    {
-        $invoice->delete();
-        return response()->json(['message' => 'Deleted']);
+        return Invoice::create($data);
     }
 
     public function download(Invoice $invoice)
     {
-        $content = "Invoice: {$invoice->invoice_number}\n"
-            . "Customer: {$invoice->customer_name}\n"
-            . "Email: {$invoice->customer_email}\n" // ✅
-            . "Amount: {$invoice->currency} {$invoice->amount}\n"
-            . "Billing Date: " . optional($invoice->billing_date)->format('Y-m-d') . "\n"
-            . "Status: {$invoice->status}\n";
-
-        return Response::make($content, 200, [
-            'Content-Type' => 'text/plain',
-            'Content-Disposition' => 'attachment; filename="'.$invoice->invoice_number.'.txt"',
+        $pdf = Pdf::loadView('invoices.pdf', [
+            'invoice' => $invoice,
         ]);
+
+        return $pdf->download($invoice->invoice_number . '.pdf');
     }
 
-    private function generateInvoiceNumber(): string
+    public function sendEmail(Invoice $invoice)
     {
-        $year = now()->format('Y');
-        $countThisYear = Invoice::where('invoice_number', 'like', "INV-{$year}-%")->count() + 1;
-        $seq = str_pad((string) $countThisYear, 3, '0', STR_PAD_LEFT);
+        if (!$invoice->customer_email) {
+            return response()->json(['message' => 'No email'], 400);
+        }
 
-        return "INV-{$year}-{$seq}";
+        Mail::to($invoice->customer_email)->send(new InvoiceMail($invoice));
+
+        $invoice->email_sent_at = now();
+        $invoice->save();
+
+        return response()->json(['message' => 'Email sent']);
     }
 }
