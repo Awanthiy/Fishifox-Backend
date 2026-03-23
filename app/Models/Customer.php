@@ -13,7 +13,14 @@ class Customer extends Model
         'name',
         'email',
         'phone',
-        'active_projects',
+        'customer_type',
+        'contact_person',
+        'address',
         'status',
+    ];
+
+    protected $casts = [
+        'active_projects' => 'integer',
+        'total_billed' => 'decimal:2',
     ];
 }

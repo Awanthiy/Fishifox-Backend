@@ -19,7 +19,11 @@ class CustomerController extends Controller
             $q->where(function ($sub) use ($search) {
                 $sub->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('customer_type', 'like', "%{$search}%")
+                    ->orWhere('contact_person', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%");
             });
         }
 
@@ -30,9 +34,14 @@ class CustomerController extends Controller
                     'name' => $c->name,
                     'email' => $c->email,
                     'phone' => $c->phone,
-                    'activeProjects' => (int) $c->active_projects,
-                    'totalBilled' => $c->total_billed ?? 'LKR 0',   // ✅ added
+                    'customerType' => $c->customer_type,
+                    'contactPerson' => $c->contact_person,
+                    'address' => $c->address,
+                    'activeProjects' => (int) ($c->active_projects ?? 0),
+                    'totalBilled' => (float) ($c->total_billed ?? 0),
                     'status' => $c->status,
+                    'createdAt' => optional($c->created_at)?->toISOString(),
+                    'updatedAt' => optional($c->updated_at)?->toISOString(),
                 ];
             })
         );
@@ -44,17 +53,19 @@ class CustomerController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'activeProjects' => ['nullable', 'integer', 'min:0'],
-            'totalBilled' => ['nullable', 'string', 'max:50'], // ✅ added
-            'status' => ['required', Rule::in(['Enterprise', 'Premium', 'Regular', 'New'])],
+            'customerType' => ['required', Rule::in(['Individual', 'Company'])],
+            'contactPerson' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string'],
+            'status' => ['required', Rule::in(['Active', 'Inactive', 'Lead'])],
         ]);
 
         $c = Customer::create([
             'name' => $data['name'],
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'active_projects' => $data['activeProjects'] ?? 0,
-            'total_billed' => $data['totalBilled'] ?? 'LKR 0', // ✅ added
+            'customer_type' => $data['customerType'],
+            'contact_person' => $data['contactPerson'] ?? null,
+            'address' => $data['address'] ?? null,
             'status' => $data['status'],
         ]);
 
@@ -63,9 +74,14 @@ class CustomerController extends Controller
             'name' => $c->name,
             'email' => $c->email,
             'phone' => $c->phone,
-            'activeProjects' => (int) $c->active_projects,
-            'totalBilled' => $c->total_billed ?? 'LKR 0', // ✅ added
+            'customerType' => $c->customer_type,
+            'contactPerson' => $c->contact_person,
+            'address' => $c->address,
+            'activeProjects' => (int) ($c->active_projects ?? 0),
+            'totalBilled' => (float) ($c->total_billed ?? 0),
             'status' => $c->status,
+            'createdAt' => optional($c->created_at)?->toISOString(),
+            'updatedAt' => optional($c->updated_at)?->toISOString(),
         ], 201);
     }
 
@@ -75,34 +91,46 @@ class CustomerController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'activeProjects' => ['nullable', 'integer', 'min:0'],
-            'totalBilled' => ['nullable', 'string', 'max:50'], // ✅ added
-            'status' => ['required', Rule::in(['Enterprise', 'Premium', 'Regular', 'New'])],
+            'customerType' => ['required', Rule::in(['Individual', 'Company'])],
+            'contactPerson' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string'],
+            'status' => ['required', Rule::in(['Active', 'Inactive', 'Lead'])],
         ]);
 
         $customer->update([
             'name' => $data['name'],
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'active_projects' => $data['activeProjects'] ?? 0,
-            'total_billed' => $data['totalBilled'] ?? 'LKR 0', // ✅ added
+            'customer_type' => $data['customerType'],
+            'contact_person' => $data['contactPerson'] ?? null,
+            'address' => $data['address'] ?? null,
             'status' => $data['status'],
         ]);
+
+        $customer->refresh();
 
         return response()->json([
             'id' => (string) $customer->id,
             'name' => $customer->name,
             'email' => $customer->email,
             'phone' => $customer->phone,
-            'activeProjects' => (int) $customer->active_projects,
-            'totalBilled' => $customer->total_billed ?? 'LKR 0', // ✅ added
+            'customerType' => $customer->customer_type,
+            'contactPerson' => $customer->contact_person,
+            'address' => $customer->address,
+            'activeProjects' => (int) ($customer->active_projects ?? 0),
+            'totalBilled' => (float) ($customer->total_billed ?? 0),
             'status' => $customer->status,
+            'createdAt' => optional($customer->created_at)?->toISOString(),
+            'updatedAt' => optional($customer->updated_at)?->toISOString(),
         ]);
     }
 
     public function destroy(Customer $customer)
     {
         $customer->delete();
-        return response()->json(['message' => 'Deleted']);
+
+        return response()->json([
+            'message' => 'Deleted successfully'
+        ]);
     }
 }
