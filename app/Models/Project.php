@@ -3,13 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Project extends Model
 {
     protected $fillable = [
         'name',
-        'customer_name',
+        'customer_id',
         'status',
         'progress',
     ];
+
+    protected $casts = [
+        'customer_id' => 'integer',
+        'progress' => 'integer',
+    ];
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
 }
