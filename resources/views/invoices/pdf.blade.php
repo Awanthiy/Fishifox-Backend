@@ -23,11 +23,29 @@
 
         .top-bar {
             background: #4B49AC;
-            padding: 26px 34px 22px 34px;
+            padding: 28px 34px 24px 34px;
         }
 
-        .logo {
-            height: 70px;
+        .brand {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+
+        .brand-white {
+            color: #ffffff;
+        }
+
+        .brand-orange {
+            color: #FF8C42;
+        }
+
+        .brand-tagline {
+            font-size: 10px;
+            color: #ffffff;
+            letter-spacing: 2px;
+            margin-top: 8px;
         }
 
         .content {
@@ -176,29 +194,37 @@
             line-height: 1.8;
         }
 
-        .brand-name {
+        .footer-brand {
             font-size: 28px;
             font-weight: 800;
             margin-top: 10px;
+            line-height: 1;
         }
 
-        .brand-sub {
+        .footer-brand-white {
+            color: #ffffff;
+        }
+
+        .footer-brand-orange {
+            color: #FF8C42;
+        }
+
+        .footer-sub {
             font-size: 11px;
             opacity: 0.9;
             letter-spacing: 1px;
             text-transform: uppercase;
-        }
-
-        .muted {
-            color: #6b7280;
+            margin-top: 8px;
         }
     </style>
 </head>
 <body>
     <div class="page">
         <div class="top-bar">
-            {{-- Put your logo file in public/logo.png --}}
-            <img src="{{ public_path('logo.png') }}" alt="FishiFox Logo" class="logo">
+            <div class="brand">
+                <span class="brand-white">Fishi</span><span class="brand-orange">Fox</span>
+                <div class="brand-tagline">DIVING TO AN UNEXPECTED DEPTH</div>
+            </div>
         </div>
 
         <div class="content">
@@ -267,12 +293,14 @@
 
         <div class="footer clearfix">
             <div class="footer-left">
-                <div class="brand-name">FishiFox</div>
-                <div class="brand-sub">Diving to an Unexpected Depth</div>
+                <div class="footer-brand">
+                    <span class="footer-brand-white">Fishi</span><span class="footer-brand-orange">Fox</span>
+                </div>
+                <div class="footer-sub">DIVING TO AN UNEXPECTED DEPTH</div>
             </div>
 
             <div class="footer-right">
-                support@fishifox.com<br>
+                awanthiyashodarax@gmail.com<br>
                 Sri Lanka<br>
                 Generated on {{ now()->format('d/m/Y H:i') }}
             </div>
