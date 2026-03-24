@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\InvoiceMail;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -22,13 +23,13 @@ class InvoiceController extends Controller
         if ($search !== '') {
             $q->where(function ($qq) use ($search) {
                 $qq->where('invoice_number', 'like', "%{$search}%")
-                   ->orWhere('customer_name', 'like', "%{$search}%")
-                   ->orWhere('customer_email', 'like', "%{$search}%");
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('customer_email', 'like', "%{$search}%");
             });
         }
 
         return response()->json(
-            $q->get()->map(fn (Invoice $inv) => $this->transformInvoice($inv))
+            $q->get()->map(fn(Invoice $inv) => $this->transformInvoice($inv))
         );
     }
 
@@ -49,7 +50,6 @@ class InvoiceController extends Controller
             $data['invoice_number'] = $this->generateInvoiceNumber();
         }
 
-        // If email not sent from frontend, try finding it from customers table
         if (empty($data['customer_email'])) {
             $customer = Customer::where('name', $data['customer_name'])->first();
             if ($customer && !empty($customer->email)) {
@@ -98,8 +98,11 @@ class InvoiceController extends Controller
     // GET /api/invoices/{invoice}/download
     public function download(Invoice $invoice)
     {
+        $company = $this->getCompanySettingsForPdf();
+
         $pdf = Pdf::loadView('invoices.pdf', [
             'invoice' => $invoice,
+            'company' => $company,
         ]);
 
         return $pdf->download($invoice->invoice_number . '.pdf');
@@ -133,6 +136,33 @@ class InvoiceController extends Controller
         return response()->json([
             'message' => 'Invoice email sent successfully.'
         ]);
+    }
+
+    private function getCompanySettingsForPdf(): array
+    {
+        $company = Setting::where('key', 'company')->first()?->value ?? [];
+
+        $company = array_merge([
+            'company_name' => 'FishiFox',
+            'company_email' => '',
+            'company_phone' => '',
+            'company_address' => '',
+            'invoice_header' => '',
+            'invoice_footer' => '',
+            'company_logo' => null,
+            'company_logo_path' => null,
+        ], $company);
+
+        if (!empty($company['company_logo'])) {
+            $logoName = basename($company['company_logo']);
+            $fullPath = public_path('uploads/company/' . $logoName);
+
+            if (file_exists($fullPath)) {
+                $company['company_logo_path'] = $fullPath;
+            }
+        }
+
+        return $company;
     }
 
     private function transformInvoice(Invoice $inv): array

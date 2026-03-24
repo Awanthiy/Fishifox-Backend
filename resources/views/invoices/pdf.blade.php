@@ -26,6 +26,17 @@
             padding: 28px 34px 24px 34px;
         }
 
+        .top-bar-inner {
+            width: 100%;
+        }
+
+        .top-logo {
+            max-height: 70px;
+            max-width: 160px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
         .brand {
             font-size: 42px;
             font-weight: 900;
@@ -46,6 +57,14 @@
             color: #ffffff;
             letter-spacing: 2px;
             margin-top: 8px;
+        }
+
+        .header-text {
+            margin-top: 14px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ffffff;
+            max-width: 85%;
         }
 
         .content {
@@ -109,6 +128,17 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 10px;
+        }
+
+        .company-summary {
+            margin-bottom: 24px;
+            padding: 14px 16px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.8;
+            color: #374151;
         }
 
         table {
@@ -217,14 +247,38 @@
             text-transform: uppercase;
             margin-top: 8px;
         }
+
+        .footer-text {
+            margin-top: 12px;
+            font-size: 11px;
+            line-height: 1.7;
+            color: #ffffff;
+            opacity: 0.95;
+            max-width: 90%;
+        }
     </style>
 </head>
 <body>
     <div class="page">
         <div class="top-bar">
-            <div class="brand">
-                <span class="brand-white">Fishi</span><span class="brand-orange">Fox</span>
-                <div class="brand-tagline">DIVING TO AN UNEXPECTED DEPTH</div>
+            <div class="top-bar-inner">
+                @if(!empty($company['company_logo_path']))
+                    <img src="{{ $company['company_logo_path'] }}" alt="Company Logo" class="top-logo">
+                @endif
+
+                <div class="brand">
+                    @if(!empty($company['company_name']))
+                        <span class="brand-white">{{ $company['company_name'] }}</span>
+                    @else
+                        <span class="brand-white">Fishi</span><span class="brand-orange">Fox</span>
+                    @endif
+                </div>
+
+                @if(!empty($company['invoice_header']))
+                    <div class="header-text">
+                        {{ $company['invoice_header'] }}
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -240,6 +294,13 @@
                     <div class="meta-label">Date</div>
                     <div class="meta-value">{{ optional($invoice->billing_date)->format('d/m/Y') ?? '—' }}</div>
                 </div>
+            </div>
+
+            <div class="company-summary">
+                <strong>{{ $company['company_name'] ?? 'Company' }}</strong><br>
+                {{ $company['company_email'] ?? '' }}<br>
+                {{ $company['company_phone'] ?? '' }}<br>
+                {{ $company['company_address'] ?? '' }}
             </div>
 
             <div class="divider"></div>
@@ -301,14 +362,27 @@
         <div class="footer clearfix">
             <div class="footer-left">
                 <div class="footer-brand">
-                    <span class="footer-brand-white">Fishi</span><span class="footer-brand-orange">Fox</span>
+                    @if(!empty($company['company_name']))
+                        <span class="footer-brand-white">{{ $company['company_name'] }}</span>
+                    @else
+                        <span class="footer-brand-white">Fishi</span><span class="footer-brand-orange">Fox</span>
+                    @endif
                 </div>
-                <div class="footer-sub">DIVING TO AN UNEXPECTED DEPTH</div>
+
+                @if(!empty($company['invoice_footer']))
+                    <div class="footer-text">
+                        {{ $company['invoice_footer'] }}
+                    </div>
+                @else
+                    <div class="footer-sub">Generated Invoice</div>
+                @endif
             </div>
 
             <div class="footer-right">
-                Fishifox(Pvt) Ltd.<br>
-                Kottawa, Sri Lanka<br>
+                {{ $company['company_name'] ?? 'Company' }}<br>
+                {{ $company['company_address'] ?? '' }}<br>
+                {{ $company['company_email'] ?? '' }}<br>
+                {{ $company['company_phone'] ?? '' }}<br>
                 Generated on {{ now()->format('d/m/Y H:i') }}
             </div>
         </div>
