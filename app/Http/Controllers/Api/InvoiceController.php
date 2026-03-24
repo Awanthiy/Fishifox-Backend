@@ -3,99 +3,159 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\InvoiceMail;
+use App\Models\Customer;
 use App\Models\Invoice;
-use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
 class InvoiceController extends Controller
 {
-    public function download(Invoice $invoice)
+    // GET /api/invoices?search=
+    public function index(Request $request)
     {
-        $invoice->loadMissing('customer');
+        $search = trim((string) $request->query('search', ''));
 
-        $companyRow = Setting::query()->where('key', 'company')->first();
-        $company = $companyRow?->value ?? [
-            'company_name' => 'My Company',
-            'company_email' => '',
-            'company_phone' => '',
-            'company_address' => '',
-            'company_logo' => null,
-        ];
+        $q = Invoice::query()->orderByDesc('id');
 
-        $company['company_logo_path'] = null;
-
-        if (!empty($company['company_logo'])) {
-            $logoName = basename($company['company_logo']);
-            $fullPath = public_path('uploads/company/' . $logoName);
-
-            if (file_exists($fullPath)) {
-                $company['company_logo_path'] = $fullPath;
-            }
+        if ($search !== '') {
+            $q->where(function ($qq) use ($search) {
+                $qq->where('invoice_number', 'like', "%{$search}%")
+                   ->orWhere('customer_name', 'like', "%{$search}%")
+                   ->orWhere('customer_email', 'like', "%{$search}%");
+            });
         }
 
-        $pdf = Pdf::loadView('invoices.pdf', [
-            'invoice' => $invoice,
-            'company' => $company,
-        ]);
-
-        return $pdf->download('invoice-' . ($invoice->invoice_number ?? $invoice->id) . '.pdf');
+        return response()->json(
+            $q->get()->map(fn (Invoice $inv) => $this->transformInvoice($inv))
+        );
     }
 
-    public function sendEmail(Request $request, Invoice $invoice)
+    // POST /api/invoices
+    public function store(Request $request)
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
-            'subject' => ['nullable', 'string', 'max:255'],
-            'message' => ['nullable', 'string'],
+            'invoice_number' => ['nullable', 'string', 'max:50'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'billing_date' => ['nullable', 'date'],
+            'status' => ['required', 'in:PAID,PENDING,OVERDUE'],
         ]);
 
-        $invoice->loadMissing('customer');
+        if (empty($data['invoice_number'])) {
+            $data['invoice_number'] = $this->generateInvoiceNumber();
+        }
 
-        $companyRow = Setting::query()->where('key', 'company')->first();
-        $company = $companyRow?->value ?? [
-            'company_name' => 'My Company',
-            'company_email' => '',
-            'company_phone' => '',
-            'company_address' => '',
-            'company_logo' => null,
-        ];
-
-        $company['company_logo_path'] = null;
-
-        if (!empty($company['company_logo'])) {
-            $logoName = basename($company['company_logo']);
-            $fullPath = public_path('uploads/company/' . $logoName);
-
-            if (file_exists($fullPath)) {
-                $company['company_logo_path'] = $fullPath;
+        // If email not sent from frontend, try finding it from customers table
+        if (empty($data['customer_email'])) {
+            $customer = Customer::where('name', $data['customer_name'])->first();
+            if ($customer && !empty($customer->email)) {
+                $data['customer_email'] = $customer->email;
             }
         }
 
+        $inv = Invoice::create($data);
+
+        return response()->json($this->transformInvoice($inv), 201);
+    }
+
+    // PUT /api/invoices/{invoice}
+    public function update(Request $request, Invoice $invoice)
+    {
+        $data = $request->validate([
+            'invoice_number' => ['required', 'string', 'max:50', 'unique:invoices,invoice_number,' . $invoice->id],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'billing_date' => ['nullable', 'date'],
+            'status' => ['required', 'in:PAID,PENDING,OVERDUE'],
+        ]);
+
+        if (empty($data['customer_email'])) {
+            $customer = Customer::where('name', $data['customer_name'])->first();
+            if ($customer && !empty($customer->email)) {
+                $data['customer_email'] = $customer->email;
+            }
+        }
+
+        $invoice->update($data);
+
+        return response()->json($this->transformInvoice($invoice->fresh()));
+    }
+
+    // DELETE /api/invoices/{invoice}
+    public function destroy(Invoice $invoice)
+    {
+        $invoice->delete();
+
+        return response()->json(['message' => 'Deleted']);
+    }
+
+    // GET /api/invoices/{invoice}/download
+    public function download(Invoice $invoice)
+    {
         $pdf = Pdf::loadView('invoices.pdf', [
             'invoice' => $invoice,
-            'company' => $company,
         ]);
 
-        $pdfContent = $pdf->output();
+        return $pdf->download($invoice->invoice_number . '.pdf');
+    }
 
-        $to = $data['email'];
-        $subject = $data['subject'] ?? ('Invoice #' . ($invoice->invoice_number ?? $invoice->id));
-        $messageText = $data['message'] ?? 'Please find your invoice attached.';
+    // POST /api/invoices/{invoice}/send-email
+    public function sendEmail(Invoice $invoice)
+    {
+        $email = $invoice->customer_email;
 
-        Mail::send('emails.invoice', ['invoice' => $invoice, 'messageText' => $messageText], function ($message) use ($to, $subject, $pdfContent, $invoice) {
-            $message->to($to)
-                ->subject($subject)
-                ->attachData(
-                    $pdfContent,
-                    'invoice-' . ($invoice->invoice_number ?? $invoice->id) . '.pdf',
-                    ['mime' => 'application/pdf']
-                );
-        });
+        if (empty($email)) {
+            $customer = Customer::where('name', $invoice->customer_name)->first();
+            if ($customer && !empty($customer->email)) {
+                $email = $customer->email;
+            }
+        }
+
+        if (empty($email)) {
+            return response()->json([
+                'message' => 'Customer email not found for this invoice.'
+            ], 422);
+        }
+
+        Mail::to($email)->send(new InvoiceMail($invoice));
+
+        $invoice->update([
+            'customer_email' => $email,
+            'email_sent_at' => now(),
+        ]);
 
         return response()->json([
-            'message' => 'Invoice email sent successfully.',
+            'message' => 'Invoice email sent successfully.'
         ]);
+    }
+
+    private function transformInvoice(Invoice $inv): array
+    {
+        return [
+            'id' => (int) $inv->id,
+            'invoice_number' => $inv->invoice_number,
+            'customer_name' => $inv->customer_name,
+            'customer_email' => $inv->customer_email,
+            'amount' => (float) $inv->amount,
+            'currency' => $inv->currency,
+            'date' => optional($inv->billing_date)->format('Y-m-d'),
+            'status' => $inv->status,
+            'email_sent_at' => optional($inv->email_sent_at)?->toDateTimeString(),
+        ];
+    }
+
+    private function generateInvoiceNumber(): string
+    {
+        $year = now()->format('Y');
+        $countThisYear = Invoice::where('invoice_number', 'like', "INV-{$year}-%")->count() + 1;
+        $seq = str_pad((string) $countThisYear, 3, '0', STR_PAD_LEFT);
+
+        return "INV-{$year}-{$seq}";
     }
 }

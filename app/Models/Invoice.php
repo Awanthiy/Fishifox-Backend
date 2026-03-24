@@ -12,7 +12,7 @@ class Invoice extends Model
     protected $fillable = [
         'invoice_number',
         'customer_name',
-        'customer_email', // ✅ NEW
+        'customer_email',
         'amount',
         'currency',
         'billing_date',
@@ -20,7 +20,7 @@ class Invoice extends Model
         'is_recurring',
         'recurrence_period',
         'next_run_date',
-        'email_sent_at', // ✅ NEW (future use)
+        'email_sent_at',
     ];
 
     protected $casts = [
@@ -28,5 +28,6 @@ class Invoice extends Model
         'next_run_date' => 'date',
         'is_recurring' => 'boolean',
         'email_sent_at' => 'datetime',
+        'amount' => 'decimal:2',
     ];
 }
