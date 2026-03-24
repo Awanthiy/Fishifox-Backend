@@ -9,6 +9,6 @@ class Setting extends Model
     protected $fillable = ['key', 'value'];
 
     protected $casts = [
-        'value' => 'array', // ✅ critical
+        'value' => 'array',
     ];
 }
