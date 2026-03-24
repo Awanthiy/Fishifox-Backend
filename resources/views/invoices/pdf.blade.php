@@ -118,16 +118,17 @@
 
         .items thead th {
             text-align: left;
-            font-size: 12px;
+            font-size: 11px;
             color: #374151;
             border-bottom: 2px solid #c7d2fe;
-            padding: 10px 0;
+            padding: 10px 6px;
         }
 
         .items tbody td {
-            padding: 12px 0;
+            padding: 12px 6px;
             border-bottom: 1px solid #e5e7eb;
-            font-size: 13px;
+            font-size: 12px;
+            vertical-align: top;
         }
 
         .items .right {
@@ -248,6 +249,8 @@
             <table class="items">
                 <thead>
                     <tr>
+                        <th>Customer Name</th>
+                        <th>Item</th>
                         <th>Description</th>
                         <th class="right">Price</th>
                         <th class="right">Quantity</th>
@@ -256,17 +259,21 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Service Invoice</td>
+                        <td>{{ $invoice->customer_name ?? 'N/A' }}</td>
+                        <td>{{ $invoice->item ?? 'Service' }}</td>
+                        <td>{{ $invoice->description ?? 'Service Invoice' }}</td>
                         <td class="right">{{ $invoice->currency }} {{ number_format($invoice->amount, 2) }}</td>
-                        <td class="right">1</td>
+                        <td class="right">{{ $invoice->quantity ?? 1 }}</td>
                         <td class="right" style="color:#4B49AC; font-weight:700;">
-                            {{ $invoice->currency }} {{ number_format($invoice->amount, 2) }}
+                            {{ $invoice->currency }} {{ number_format(($invoice->amount * ($invoice->quantity ?? 1)), 2) }}
                         </td>
                     </tr>
 
                     <tr class="total-row">
-                        <td colspan="3" class="total-label">Total</td>
-                        <td class="total-value">{{ $invoice->currency }} {{ number_format($invoice->amount, 2) }}</td>
+                        <td colspan="5" class="total-label">Total</td>
+                        <td class="total-value">
+                            {{ $invoice->currency }} {{ number_format(($invoice->amount * ($invoice->quantity ?? 1)), 2) }}
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -301,7 +308,7 @@
 
             <div class="footer-right">
                 Fishifox(Pvt) Ltd.<br>
-                Kottawa,Sri Lanka<br>
+                Kottawa, Sri Lanka<br>
                 Generated on {{ now()->format('d/m/Y H:i') }}
             </div>
         </div>
