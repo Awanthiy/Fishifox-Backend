@@ -40,6 +40,8 @@ class SettingsController extends Controller
             'company_email' => 'company@example.com',
             'company_phone' => '+94 77 123 4567',
             'company_address' => 'Colombo, Sri Lanka',
+            'invoice_header' => '',
+            'invoice_footer' => '',
             'company_logo' => null,
         ];
     }
@@ -68,13 +70,15 @@ class SettingsController extends Controller
             'appearance' => [
                 'theme' => $appearance['theme'] ?? 'system',
                 'accent' => $appearance['accent'] ?? 'purple',
-                'reduced_motion' => (bool)($appearance['reduced_motion'] ?? false),
+                'reduced_motion' => (bool) ($appearance['reduced_motion'] ?? false),
             ],
             'company' => [
                 'company_name' => $company['company_name'] ?? '',
                 'company_email' => $company['company_email'] ?? '',
                 'company_phone' => $company['company_phone'] ?? '',
                 'company_address' => $company['company_address'] ?? '',
+                'invoice_header' => $company['invoice_header'] ?? '',
+                'invoice_footer' => $company['invoice_footer'] ?? '',
                 'company_logo' => $company['company_logo'] ?? null,
             ],
         ]);
@@ -127,12 +131,21 @@ class SettingsController extends Controller
             'company_email' => ['nullable', 'email', 'max:255'],
             'company_phone' => ['nullable', 'string', 'max:255'],
             'company_address' => ['nullable', 'string', 'max:1000'],
+            'invoice_header' => ['nullable', 'string', 'max:3000'],
+            'invoice_footer' => ['nullable', 'string', 'max:3000'],
         ]);
 
         $existing = Setting::query()->where('key', $this->companyKey)->first();
         $oldValue = $existing?->value ?? $this->defaultCompany();
 
-        $newValue = array_merge($oldValue, $data);
+        $newValue = array_merge($oldValue, [
+            'company_name' => $data['company_name'],
+            'company_email' => $data['company_email'] ?? '',
+            'company_phone' => $data['company_phone'] ?? '',
+            'company_address' => $data['company_address'] ?? '',
+            'invoice_header' => $data['invoice_header'] ?? '',
+            'invoice_footer' => $data['invoice_footer'] ?? '',
+        ]);
 
         $row = Setting::query()->updateOrCreate(
             ['key' => $this->companyKey],
