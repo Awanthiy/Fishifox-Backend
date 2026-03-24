@@ -9,11 +9,11 @@ use App\Models\Invoice;
 use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class InvoiceController extends Controller
 {
-    // GET /api/invoices?search=
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
@@ -33,7 +33,6 @@ class InvoiceController extends Controller
         );
     }
 
-    // POST /api/invoices
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -62,7 +61,6 @@ class InvoiceController extends Controller
         return response()->json($this->transformInvoice($inv), 201);
     }
 
-    // PUT /api/invoices/{invoice}
     public function update(Request $request, Invoice $invoice)
     {
         $data = $request->validate([
@@ -87,7 +85,6 @@ class InvoiceController extends Controller
         return response()->json($this->transformInvoice($invoice->fresh()));
     }
 
-    // DELETE /api/invoices/{invoice}
     public function destroy(Invoice $invoice)
     {
         $invoice->delete();
@@ -95,20 +92,32 @@ class InvoiceController extends Controller
         return response()->json(['message' => 'Deleted']);
     }
 
-    // GET /api/invoices/{invoice}/download
     public function download(Invoice $invoice)
     {
-        $company = $this->getCompanySettingsForPdf();
+        try {
+            $company = $this->getCompanySettingsForPdf();
 
-        $pdf = Pdf::loadView('invoices.pdf', [
-            'invoice' => $invoice,
-            'company' => $company,
-        ])->setPaper('a4', 'portrait');
+            $pdf = Pdf::loadView('invoices.pdf', [
+                'invoice' => $invoice,
+                'company' => $company,
+            ])->setPaper('a4', 'portrait');
 
-        return $pdf->download(($invoice->invoice_number ?? 'invoice') . '.pdf');
+            return $pdf->download(($invoice->invoice_number ?? 'invoice') . '.pdf');
+        } catch (\Throwable $e) {
+            Log::error('Invoice PDF download failed', [
+                'invoice_id' => $invoice->id ?? null,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'message' => 'Invoice PDF generation failed.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    // POST /api/invoices/{invoice}/send-email
     public function sendEmail(Invoice $invoice)
     {
         $email = $invoice->customer_email;
