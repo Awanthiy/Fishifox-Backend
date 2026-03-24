@@ -29,7 +29,7 @@ class InvoiceController extends Controller
         }
 
         return response()->json(
-            $q->get()->map(fn(Invoice $inv) => $this->transformInvoice($inv))
+            $q->get()->map(fn (Invoice $inv) => $this->transformInvoice($inv))
         );
     }
 
@@ -103,9 +103,9 @@ class InvoiceController extends Controller
         $pdf = Pdf::loadView('invoices.pdf', [
             'invoice' => $invoice,
             'company' => $company,
-        ]);
+        ])->setPaper('a4', 'portrait');
 
-        return $pdf->download($invoice->invoice_number . '.pdf');
+        return $pdf->download(($invoice->invoice_number ?? 'invoice') . '.pdf');
     }
 
     // POST /api/invoices/{invoice}/send-email
