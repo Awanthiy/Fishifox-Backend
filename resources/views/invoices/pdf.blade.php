@@ -300,8 +300,8 @@
             </div>
 
             <div class="footer-right">
-                awanthiyashodarax@gmail.com<br>
-                Sri Lanka<br>
+                Fishifox(Pvt) Ltd.<br>
+                Kottawa,Sri Lanka<br>
                 Generated on {{ now()->format('d/m/Y H:i') }}
             </div>
         </div>
